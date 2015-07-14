@@ -36,7 +36,7 @@
  *  energy lost is a fraction (a) of the kinetic energy it had before the
  *  bump.
 */
-#define DEBUG
+//#define DEBUG
 //#define DEBUG2
 /********************************************************* 
  *                   c o n s t a n t s: 
