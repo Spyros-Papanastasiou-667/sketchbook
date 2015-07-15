@@ -95,6 +95,8 @@ String  TFTStringOne,TFTStringTwo;
 /* variables about the time on which to draw the TFT */
 unsigned long diffTFTTime=0,currTFTTime=0,prevTFTTime=0;
 boolean drawTFTNow=true;
+String TFTLoopsPerSecString;
+unsigned long TFTLoopsPerSec;
 
 #ifdef TOUCH
   unsigned short xTouch,yTouch;
@@ -298,11 +300,14 @@ void loop() {
     trackedTime=0;
     prevTime=currTime;
     Serial.print("\t\tloopsPerSecond = ");
-    Serial.println(float(loopsPerSec/totalSecs));
+    Serial.println(float(loopsPerSec/totalSecs),2);
     loopsPerSec=0;
+    TFTLoopsPerSecString="Loops per second : " + String(float(TFTLoopsPerSec/totalSecs),2);
+    TFTLoopsPerSec=0;
   }else{
     trackedTime=diffTime/1000.0/* convert to secs */;
     loopsPerSec++;
+    TFTLoopsPerSec++;
   }
 
   /* 
@@ -348,15 +353,23 @@ void loop() {
   currTFTTime=millis();
   diffTFTTime=abs(currTFTTime- prevTFTTime);
   drawTFTNow=false;
-  if (diffTFTTime >= 1000/* millisecs */){
+  if (diffTFTTime >= 100/* millisecs */){
     prevTFTTime=currTFTTime;
     drawTFTNow=true;
   }
   
   if (drawTFTNow== true){
-    myGLCD.lcdOff();
+    myGLCD.fillScr(VGA_WHITE);
+    myGLCD.setColor(VGA_WHITE);
+    myGLCD.setBackColor(VGA_BLACK);
+    yPos=scale(h,H0,0,0,displayHeight-12);
+    TFTStringOne="yPos = " +String(yPos);
+    myGLCD.print(TFTStringOne,CENTER,0);
+//    myGLCD.print(TFTLoopsPerSecString,CENTER,yPos);
+    myGLCD.setColor(VGA_OLIVE);
+    myGLCD.fillCircle(displayWidth/2-1,yPos,16);
     
-/*  Print coordinates of the four corners : */
+/*  Print coordinates of/on the four corners : */
 /*    xPos=0;
     yPos=0;
     TFTStringOne="(" + String(xPos) + "," + String(yPos) + ")";
