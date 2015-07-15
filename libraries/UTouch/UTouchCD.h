@@ -17,6 +17,6 @@
 // They MIGHT work on your 320x240 display module, but you should run the
 // calibration sketch anyway. If you are using a display with any other
 // resolution you MUST calibrate it as these settings WILL NOT work.
-#define CAL_X 0x00000000UL
-#define CAL_Y 0x00000000UL
+#define CAL_X 0x00248EA8UL
+#define CAL_Y 0x00270ECBUL
 #define CAL_S 0x000EF13FUL

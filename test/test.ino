@@ -53,7 +53,7 @@ UTouch  myTouch( 6, 5, 4, 3, 2);
 // Declare which fonts we will be using
 extern uint8_t SmallFont[];
 
-uint32_t cx, cy;
+uint32_t cx, cy, x, y;
 uint32_t rx[8], ry[8];
 uint32_t clx, crx, cty, cby;
 float px, py;
@@ -98,6 +98,8 @@ void readCoordinates()
     while ((myTouch.dataAvailable() == true) && (cnt<iter) && (failcount<10000))
     {
       myTouch.calibrateRead();
+      x=myTouch.getX();
+      y=myTouch.getY();
       if (!((myTouch.TP_X==65535) || (myTouch.TP_Y==65535)))
       {
         tx += myTouch.TP_X;
@@ -123,6 +125,10 @@ void readCoordinates()
 
   cx = tx / iter;
   cy = ty / iter;
+  String toPrint = "x, y = " + String(myTouch.getX()) + ", " + String(myTouch.getY());
+  myGLCD.print(toPrint,CENTER, 20);
+  toPrint = "tx, ty = " + String(tx) + ", " + String(ty);
+  myGLCD.print(toPrint,CENTER, 40);
 }
 
 void calibrate(int x, int y, int i)

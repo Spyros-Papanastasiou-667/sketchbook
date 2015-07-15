@@ -35,7 +35,17 @@
  *  in this program, my main assumption is that at each bump, the kinetic
  *  energy lost is a fraction (a) of the kinetic energy it had before the
  *  bump.
-*/
+ *  
+ *  This program was made for modules with a screen resolution of 320x240 pixels
+ *  
+ *  This program requires the UTFT library.
+ *  
+ */
+#include <UTFT.h>
+//#define TOUCH
+#ifdef TOUCH
+  #include <UTouch.h>
+#endif
 //#define DEBUG
 //#define DEBUG2
 /********************************************************* 
@@ -48,6 +58,10 @@ const unsigned short totalSecs=20;
 //const int maxHeight /* starting height in meters */ = 10;
 //  const int startingHeight=maxHeight;
 const double lastMaxHeightPercentage /* before the last bump/ in meters */ = 1/100.0/* of startingHeight  */;
+/*
+ *                      T F T
+ */
+extern unsigned char SmallFont[];
 /*******************************************************
  *                  V a r i a b l e s
  *******************************************************/
@@ -66,16 +80,59 @@ double  v[numOfBumps]/* velocity after each bump */,
         H0/* starting height */, 
         a/* the percentage of lost kinetic energy on each bump/ calculated */;
 
+/* code to keep track of 10 sec */
+unsigned long prevTime=0,currTime=0,diffTime=0,
+              prevTime2=0,currTime2=0,diffTime2=0;
+double trackedTime=0/* 0 to 10 sec */;
+
+/*****************************************
+ *             TFT Variables             *
+ *****************************************/
+unsigned short displayHeight, displayWidth;
+byte tftBrightness;
+unsigned short xPos,yPos,zPos;
+String  TFTStringOne,TFTStringTwo;
+/* variables about the time on which to draw the TFT */
+unsigned long diffTFTTime=0,currTFTTime=0,prevTFTTime=0;
+boolean drawTFTNow=true;
+
+#ifdef TOUCH
+  unsigned short xTouch,yTouch;
+#endif
 /******************************************************************
  * 
  *           f u n c t i o n   i n i t i a l i z a t i o n
  * 
  ******************************************************************/
+/* Set the pins to the correct ones for your development shield
+ * ------------------------------------------------------------
+ * Standard Arduino Mega/Due shield            : <display model>,38,39,40,41
+ * CTE TFT LCD/SD Shield for Arduino Due       : <display model>,25,26,27,28
+ * Teensy 3.x TFT Test Board                   : <display model>,23,22, 3, 4
+ * ElecHouse TFT LCD/SD Shield for Arduino Due : <display model>,22,23,31,33
+ * 
+ * Remember to change the model parameter to suit your display module!
+ */
+UTFT myGLCD(ITDB32S,25,26,27,28);
+/* Initialize touchscreen
+ * ----------------------
+ * Set the pins to the correct ones for your development board
+ * -----------------------------------------------------------
+ * Standard Arduino Uno/2009 Shield            : 15,10,14, 9, 8
+ * Standard Arduino Mega/Due shield            :  6, 5, 4, 3, 2
+ * CTE TFT LCD/SD Shield for Arduino Due       :  6, 5, 4, 3, 2
+ * Teensy 3.x TFT Test Board                   : 26,31,27,28,29
+ * ElecHouse TFT LCD/SD Shield for Arduino Due : 25,26,27,29,30
+ */
+#ifdef TOUCH
+  UTouch  myTouch( 6, 5, 4, 3, 2);
+#endif
 /*double startingHeight(void);
 double velocityAfterCollision(unsigned short index);
 double maxHeightAfterCollision(unsigned short index);
 double timeBetweenCollisions(unsigned short index);
 double scale(double value,double fromMax,double fromMin,double toMax,double toMin);
+
 *//*******************************************************************
  * 
  *                          S E T U P
@@ -84,6 +141,13 @@ double scale(double value,double fromMax,double fromMin,double toMax,double toMi
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(9600);
+  // Setup the LCD
+  myGLCD.InitLCD(LANDSCAPE);
+  myGLCD.setFont(SmallFont);
+  myGLCD.clrScr();
+#ifdef TOUCH
+  myTouch.InitTouch(LANDSCAPE);
+#endif
 #ifdef DEBUG2
   while (!Serial) {
     ; // wait for serial port to connect. Needed for Leonardo only only if you want to print
@@ -106,6 +170,11 @@ void setup() {
     Serial.println(debugStringTwo);
     delay(1000);
 #endif 
+  /* 
+   *  TFT variables
+   */
+   displayHeight=myGLCD.getDisplayYSize();
+   displayWidth=myGLCD.getDisplayXSize();
  }
 }
 
@@ -210,10 +279,6 @@ double scale(double value,double fromMax,double fromMin,double toMax,double toMi
       scaledValue= toMin-scaledValue;//!!
   return scaledValue;
 }
-/* code to keep track of 10 sec */
-unsigned long prevTime=0,currTime=0,diffTime=0,
-              prevTime2=0,currTime2=0,diffTime2=0;
-double trackedTime=0/* 0 to 10 sec */;
 
 /*******************************************************************
  * 
@@ -273,6 +338,66 @@ void loop() {
   /* set pwm */
   pwm=scale(h,H0,0,255,0);
   analogWrite(ledPin,pwm);
+  /*
+   * TFT code
+  */
+//  tftBrightness=scale(h,H0,0,16,0);
+//  myGLCD.setBrightness(tftBrightness);
+
+  /*          TFT time          */
+  currTFTTime=millis();
+  diffTFTTime=abs(currTFTTime- prevTFTTime);
+  drawTFTNow=false;
+  if (diffTFTTime >= 1000/* millisecs */){
+    prevTFTTime=currTFTTime;
+    drawTFTNow=true;
+  }
+  
+  if (drawTFTNow== true){
+    myGLCD.lcdOff();
+    
+/*  Print coordinates of the four corners : */
+/*    xPos=0;
+    yPos=0;
+    TFTStringOne="(" + String(xPos) + "," + String(yPos) + ")";
+    myGLCD.print(TFTStringOne, xPos,yPos);
+
+    xPos=0;
+    yPos=displayHeight;
+    TFTStringOne="(" + String(xPos) + "," + String(yPos) + ")";
+    yPos-=12/* pixels *//*;
+    myGLCD.print(TFTStringOne, xPos,yPos);
+
+    xPos=displayWidth;
+    yPos=0;
+    TFTStringOne="(" + String(xPos) + "," + String(yPos) + ")";
+    xPos-=TFTStringOne.length()*8/* pixels *//*;
+    myGLCD.print(TFTStringOne, xPos,yPos);
+
+    xPos=displayWidth;
+    yPos=displayHeight;
+    TFTStringOne="(" + String(xPos) + "," + String(yPos) + ")";
+    xPos-=TFTStringOne.length()*8/* pixels *//*;
+    yPos-=12/* pixels *//*;
+    myGLCD.print(TFTStringOne, xPos,yPos);
+*/
+#ifdef TOUCH
+    while(myTouch.dataAvailable()==true){
+/*      myTouch.read();
+      xTouch=myTouch.getX();
+      yTouch=myTouch.getY();
+      String toPrint="x,y = " + String(xTouch,DEC) + ", " + String(yTouch,DEC);
+      myGLCD.print(toPrint,CENTER,y);
+*//*      xTouch=myTouch.TP_X;
+      yTouch=myTouch.TP_Y;
+      String toPrint="TP_X, TP_Y = " + String(xTouch,DEC) + ", " + String(yTouch,DEC);
+//      y-=6;
+      myGLCD.print(toPrint,CENTER,y);
+*/    };
+#endif
+  }
+  
+
 /*******************************************************************
  * 
  *                       T E S T/ D E B U G
