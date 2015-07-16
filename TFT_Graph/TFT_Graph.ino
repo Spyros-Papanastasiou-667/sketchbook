@@ -40,10 +40,19 @@
  *  This program requires the UTFT library.
  *  
  */
+//#include <math.h>
+#include <avr/dtostrf.h>
 #include <UTFT.h>
 //#define TOUCH
+
 #include <SPI.h>
 #include <SdFat.h>
+#define SS  53
+// store error strings in flash to save RAM
+#define error(s) sd.errorHalt(F(s))
+// create Serial stream
+ArduinoOutStream cout(Serial);
+
 #ifdef TOUCH
   #include <UTouch.h>
 #endif
@@ -107,8 +116,9 @@ unsigned long diffTFTTime=0,currTFTTime=0,prevTFTTime=0;
 boolean drawTFTNow=true;
 String TFTLoopsPerSecString;
 unsigned long TFTLoopsPerSec;
-#define randomDataLength  40000
-unsigned short randomData[randomDataLength],lastFirstPixel,randomDataCounter=0,previousRandomDataCounter=0,randomDataIndex;
+
+//#define randomDataLength  40000
+//unsigned short randomData[randomDataLength],lastFirstPixel,randomDataCounter=0,previousRandomDataCounter=0,randomDataIndex;
 
 #ifdef TOUCH
   unsigned short xTouch,yTouch;
@@ -117,8 +127,11 @@ unsigned short randomData[randomDataLength],lastFirstPixel,randomDataCounter=0,p
 /*
  *                   S D   C a r d
  */
-// file system object
+String  SDStringOne;
+// File system object.
 SdFat sd;
+
+SdFile file;
 /******************************************************************
  * 
  *           f u n c t i o n   i n i t i a l i z a t i o n
@@ -167,18 +180,30 @@ void setup() {
   myGLCD.setFont(SmallFont);
   myGLCD.clrScr();
 //  myGLCD.fillScr(VGA_WHITE);
+  
+  // Setup the SD
 
-  for (int index=0;index<=randomDataLength-1 ;index++){
+  // Initialize the SD card at SPI_HALF_SPEED to avoid bus errors with
+  // breadboards.  use SPI_FULL_SPEED for better performance.
+  if (!sd.begin(SS, SPI_HALF_SPEED)) {
+    sd.initErrorHalt();
+  }
+  
+    /*-----------------------------------------------------------------
+     *      On random data array
+     */
+/*  for (int index=0;index<=randomDataLength-1 ;index++){
 //    randomData[index]=random(1,TFT_HEIGHT+1);
     randomData[index]=scale( sin(2.0*PI*index/TFT_WIDTH)+1 ,2,0,0,TFT_HEIGHT-1);
 /*    if (randomData[index]>TFT_HEIGHT-1)
       randomData[index]=TFT_HEIGHT-1;
     else if (randomData[index]<1)
       randomData[index]=1;
-*/  }
+*//*  }
   lastFirstPixel=randomData[randomDataLength-1-TFT_WIDTH];
-  /* testing SRAM */
-  while (!Serial);
+*/
+/*===================================================================*/
+/* testing SRAM */
 //  test[1]=1;
 //  Serial.println(test[testLength-1]);
 #ifdef TOUCH
@@ -215,6 +240,10 @@ void setup() {
   displayWidth=myGLCD.getDisplayXSize();
   midHeight=( 1 + (TFT_HEIGHT-1) )/2;
   midWidth=(1 + (TFT_WIDTH -1) )/2;
+  /*
+   *          SD Card
+   */
+   Serial.println("Press any key to stop and read");
 }
 
 /*double velocityPrime(double prevVelocity, unsigned short index){
@@ -403,17 +432,22 @@ void loop() {
   currTFTTime=millis();
   diffTFTTime=abs(currTFTTime- prevTFTTime);
   drawTFTNow=false;
-  if (diffTFTTime >= 000/* millisecs */){
+  if (diffTFTTime >= 1000/* millisecs */){
     prevTFTTime=currTFTTime;
     drawTFTNow=true;
   }
-  
+
   if (drawTFTNow== true){
-    {/* shift random data across the screen */
+
+      /* 
+       *        on random data array    
+       */
+/*    {
+      /* shift random data across the screen */
       /* index : 0      <---      TFT_WIDTH */
       /* randomDataCounter ++ */
-      for (int index=TFT_WIDTH-1;index>=0;index--){
-        randomDataIndex=index+randomDataCounter;/* correct! */
+/*      for (int index=TFT_WIDTH-1;index>=0;index--){
+        randomDataIndex=index+randomDataCounter;/* correct! *//*
         if (randomDataIndex>=randomDataLength)
           randomDataIndex-=randomDataLength;
         
@@ -437,7 +471,7 @@ void loop() {
            * variable pointing to its last value
            */
 //          lastFirstPixel=randomData[randomDataIndex];
-          /* randomize */
+          /* randomize *//*
           randomData[randomDataIndex]=random(0,TFT_HEIGHT-1);
         }
         myGLCD.setColor(VGA_WHITE);
@@ -447,6 +481,8 @@ void loop() {
       if (randomDataCounter==randomDataLength)
         randomDataCounter=0;
     }
+*/
+ 
     myGLCD.drawLine(0,midHeight,TFT_WIDTH-1,midHeight);// shouldn't it be 1 instead of 0 ? nevermind
     myGLCD.setColor(VGA_RED);
     myGLCD.setBackColor(VGA_BLACK);
@@ -517,6 +553,19 @@ void loop() {
       myGLCD.print(toPrint,CENTER,y);
 */    };
 #endif
+    /*
+     *    SD : write data
+     */
+    if (!file.open("test.txt", O_CREAT | O_WRITE | O_APPEND)) {
+      error("file.open");
+    }
+    char buff[sizeof("3.4028235E+38")];
+    float num=millis()/1000.0;
+    dtostrf(num,5,3,buff);
+    SDStringOne=String(num);
+    file.println(buff);/* see also file.printField() */
+    Serial.println(buff);
+    file.close();
   }
   
 
@@ -563,5 +612,30 @@ void loop() {
       "\t1/2*gravity*pow(trackedTime,2) = " + String(1/2.0*gravity,3);
     Serial.println(debugStringTwo);
   */
+
+  if (Serial.available()) {
+    // Close file and stop.
+//    SDWriteHere.close();
+    ifstream sdRead("test.txt");
+    // check for open error
+    if (!sdRead.is_open()) {
+      error("open");
+    }
+    float temp;
+    while (true){
+      if (sdRead.fail())
+        break;
+      sdRead >> temp;
+      sdRead.skipWhite();
+/*      if (sdRead.fail()) {
+        error("bad input");
+      }
+*/    Serial.println(temp,3);
+    }
+//    if (!sdRead.eof())
+//      error("not eof");
+    Serial.println(F("Done"));
+    while(1) {}
+  }
 }
 
