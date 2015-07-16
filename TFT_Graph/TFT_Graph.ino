@@ -42,6 +42,8 @@
  */
 #include <UTFT.h>
 //#define TOUCH
+#include <SPI.h>
+#include <SdFat.h>
 #ifdef TOUCH
   #include <UTouch.h>
 #endif
@@ -63,6 +65,11 @@ const double lastMaxHeightPercentage /* before the last bump/ in meters */ = 1/1
 #define TFT_WIDTH 320
 #define TFT_HEIGHT 240
 extern unsigned char SmallFont[];
+/*
+ *                   S D   C a r d
+ */
+// SD chip select pin.  Be sure to disable any other SPI devices such as Enet.
+const uint8_t chipSelect = 53;/* change this to SS */
 /*******************************************************
  *                  V a r i a b l e s
  *******************************************************/
@@ -85,7 +92,8 @@ double  v[numOfBumps]/* velocity after each bump */,
 unsigned long prevTime=0,currTime=0,diffTime=0,
               prevTime2=0,currTime2=0,diffTime2=0;
 double trackedTime=0/* 0 to 10 sec */;
-
+/* testing memory limits */
+unsigned short test[40000];/* damn it! This keeps going down! */
 /*
  *                T  F  T
  */
@@ -98,11 +106,17 @@ unsigned long diffTFTTime=0,currTFTTime=0,prevTFTTime=0;
 boolean drawTFTNow=true;
 String TFTLoopsPerSecString;
 unsigned long TFTLoopsPerSec;
-unsigned short randomData[TFT_WIDTH],randomDataCounter=0,previousRandomDataCounter=0,randomDataIndex;
+unsigned short randomData[TFT_WIDTH],lastFirstPixel,randomDataCounter=0,previousRandomDataCounter=0,randomDataIndex;
 
 #ifdef TOUCH
   unsigned short xTouch,yTouch;
 #endif
+
+/*
+ *                   S D   C a r d
+ */
+// file system object
+SdFat sd;
 /******************************************************************
  * 
  *           f u n c t i o n   i n i t i a l i z a t i o n
@@ -149,16 +163,22 @@ void setup() {
   // Setup the LCD
   myGLCD.InitLCD(LANDSCAPE);
   myGLCD.setFont(SmallFont);
-  myGLCD.fillScr(VGA_WHITE);
+  myGLCD.clrScr();
+//  myGLCD.fillScr(VGA_WHITE);
 
   for (int index=0;index<=TFT_WIDTH-1 ;index++){
 //    randomData[index]=random(1,TFT_HEIGHT+1);
-    randomData[index]=scale( sin(2.0*PI*index/TFT_WIDTH)+1 ,2,0,1,TFT_HEIGHT-1);
+    randomData[index]=scale( sin(2.0*PI*index/TFT_WIDTH)+1 ,2,0,0,TFT_HEIGHT-1);
 /*    if (randomData[index]>TFT_HEIGHT-1)
       randomData[index]=TFT_HEIGHT-1;
     else if (randomData[index]<1)
       randomData[index]=1;
 */  }
+  lastFirstPixel=randomData[0];
+  /* testing SRAM */
+  while (!Serial);
+  test[1]=1;
+  Serial.println(test[89999]);
 #ifdef TOUCH
   myTouch.InitTouch(LANDSCAPE);
 #endif
@@ -303,7 +323,7 @@ double scale(double value,double fromMax,double fromMin,double toMax,double toMi
  * 
  *******************************************************************/
 int drawPixel(unsigned short x, unsigned short y){
-  if ((x>=1)&&(x<=TFT_WIDTH-1)&&(y>=1)&&(y<=TFT_HEIGHT-1)){
+  if ((x>=0)&&(x<=TFT_WIDTH-1)&&(y>=0)&&(y<=TFT_HEIGHT-1)){
     myGLCD.drawPixel(x,y);
     return 0;
   }else
@@ -329,7 +349,7 @@ void loop() {
     Serial.print("\t\tloopsPerSecond = ");
     Serial.println(float(loopsPerSec/totalSecs),2);
     loopsPerSec=0;
-    TFTLoopsPerSecString="Loops per second : " + String(float(TFTLoopsPerSec/totalSecs),2);
+    TFTLoopsPerSecString=String(TFTLoopsPerSec/totalSecs)+" lps";
     TFTLoopsPerSec=0;
   }else{
     trackedTime=diffTime/1000.0/* convert to secs */;
@@ -381,7 +401,7 @@ void loop() {
   currTFTTime=millis();
   diffTFTTime=abs(currTFTTime- prevTFTTime);
   drawTFTNow=false;
-  if (diffTFTTime >= 1000/* millisecs */){
+  if (diffTFTTime >= 000/* millisecs */){
     prevTFTTime=currTFTTime;
     drawTFTNow=true;
   }
@@ -390,27 +410,54 @@ void loop() {
     {/* shift random data across the screen */
       /* index : 0      <---      TFT_WIDTH */
       /* randomDataCounter ++ */
-      for (int index=TFT_WIDTH;index>0;index--){
-        randomDataIndex=(index-1)+randomDataCounter;
+      for (int index=TFT_WIDTH-1;index>=0;index--){
+        randomDataIndex=index+randomDataCounter;
         if (randomDataIndex>=TFT_WIDTH)
           randomDataIndex-=TFT_WIDTH;
         
-        myGLCD.setColor(VGA_WHITE);
+        myGLCD.setColor(VGA_BLACK);
         int indexToErase=randomDataIndex-1;
         if (indexToErase<0)
           indexToErase=TFT_WIDTH-1;
-        drawPixel(index,randomData[indexToErase]);
+        if(index==0)
+          drawPixel(index,lastFirstPixel);
+        else
+          drawPixel(index,randomData[indexToErase]);
 
-//        delayMicroseconds(1000);
-        myGLCD.setColor(VGA_BLACK);
+        if (index==TFT_WIDTH-1){
+          lastFirstPixel=randomData[randomDataIndex];
+          randomData[randomDataIndex]=random(0,TFT_HEIGHT-1);
+        }
+        myGLCD.setColor(VGA_WHITE);
         drawPixel(index,randomData[randomDataIndex]);
-//        delayMicroseconds(1000);
       }
       randomDataCounter++;
       if (randomDataCounter==TFT_WIDTH)
         randomDataCounter=0;
     }
-    myGLCD.drawLine(1,midHeight,TFT_WIDTH-1,midHeight);
+    myGLCD.drawLine(0,midHeight,TFT_WIDTH-1,midHeight);// shouldn't it be 1 instead of 0 ? nevermind
+    myGLCD.setColor(VGA_RED);
+    myGLCD.setBackColor(VGA_BLACK);
+    myGLCD.print(TFTLoopsPerSecString,0,0);// Now, WHY is it 0,0 and not 1,1 ? nevermind
+
+    myGLCD.setColor(VGA_WHITE);
+    TFTStringOne=String(analogRead(A0))+"/1023";
+    TFTStringTwo=String(h,3)+"/"+String(H0,3);
+    myGLCD.print(TFTStringOne,CENTER,midHeight-12);
+    myGLCD.print(TFTStringTwo,CENTER,midHeight);
+
+/*
+ *      A T O F
+ *
+    myGLCD.setColor(VGA_WHITE);
+    TFTStringOne="1.234";
+    char buffChar[6];
+    TFTStringOne.toCharArray(buffChar,6);
+    Serial.println(buffChar);
+    float testDouble=atof(buffChar);
+    Serial.println(testDouble,3);
+    myGLCD.print(String(testDouble,3),0,12);
+*/
 //    delay(2000);
 /*    yPos=scale(h,H0,0,0,displayHeight-12);
     TFTStringOne="yPos = " +String(yPos);
