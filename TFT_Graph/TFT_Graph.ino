@@ -93,7 +93,8 @@ unsigned long prevTime=0,currTime=0,diffTime=0,
               prevTime2=0,currTime2=0,diffTime2=0;
 double trackedTime=0/* 0 to 10 sec */;
 /* testing memory limits */
-unsigned short test[40000];/* damn it! This keeps going down! */
+//#define testLength  40000
+//unsigned short test[testLength];/* damn it! This keeps going down! */
 /*
  *                T  F  T
  */
@@ -106,7 +107,8 @@ unsigned long diffTFTTime=0,currTFTTime=0,prevTFTTime=0;
 boolean drawTFTNow=true;
 String TFTLoopsPerSecString;
 unsigned long TFTLoopsPerSec;
-unsigned short randomData[TFT_WIDTH],lastFirstPixel,randomDataCounter=0,previousRandomDataCounter=0,randomDataIndex;
+#define randomDataLength  40000
+unsigned short randomData[randomDataLength],lastFirstPixel,randomDataCounter=0,previousRandomDataCounter=0,randomDataIndex;
 
 #ifdef TOUCH
   unsigned short xTouch,yTouch;
@@ -166,7 +168,7 @@ void setup() {
   myGLCD.clrScr();
 //  myGLCD.fillScr(VGA_WHITE);
 
-  for (int index=0;index<=TFT_WIDTH-1 ;index++){
+  for (int index=0;index<=randomDataLength-1 ;index++){
 //    randomData[index]=random(1,TFT_HEIGHT+1);
     randomData[index]=scale( sin(2.0*PI*index/TFT_WIDTH)+1 ,2,0,0,TFT_HEIGHT-1);
 /*    if (randomData[index]>TFT_HEIGHT-1)
@@ -174,11 +176,11 @@ void setup() {
     else if (randomData[index]<1)
       randomData[index]=1;
 */  }
-  lastFirstPixel=randomData[0];
+  lastFirstPixel=randomData[randomDataLength-1-TFT_WIDTH];
   /* testing SRAM */
   while (!Serial);
-  test[1]=1;
-  Serial.println(test[89999]);
+//  test[1]=1;
+//  Serial.println(test[testLength-1]);
 #ifdef TOUCH
   myTouch.InitTouch(LANDSCAPE);
 #endif
@@ -411,28 +413,38 @@ void loop() {
       /* index : 0      <---      TFT_WIDTH */
       /* randomDataCounter ++ */
       for (int index=TFT_WIDTH-1;index>=0;index--){
-        randomDataIndex=index+randomDataCounter;
-        if (randomDataIndex>=TFT_WIDTH)
-          randomDataIndex-=TFT_WIDTH;
+        randomDataIndex=index+randomDataCounter;/* correct! */
+        if (randomDataIndex>=randomDataLength)
+          randomDataIndex-=randomDataLength;
         
         myGLCD.setColor(VGA_BLACK);
         int indexToErase=randomDataIndex-1;
         if (indexToErase<0)
-          indexToErase=TFT_WIDTH-1;
-        if(index==0)
+          indexToErase=randomDataLength-1;
+        if(index==0){
+          int temp=randomDataIndex-1;
+          if (temp<0){
+            temp=randomDataLength-1;
+          }
+          lastFirstPixel=randomData[temp];
           drawPixel(index,lastFirstPixel);
-        else
+        }else
           drawPixel(index,randomData[indexToErase]);
 
         if (index==TFT_WIDTH-1){
-          lastFirstPixel=randomData[randomDataIndex];
+          /* the following code line was meant for when randomDataLength == TFT_WIDTH.
+           * Back then, the first pixel would become last and change, so we need a
+           * variable pointing to its last value
+           */
+//          lastFirstPixel=randomData[randomDataIndex];
+          /* randomize */
           randomData[randomDataIndex]=random(0,TFT_HEIGHT-1);
         }
         myGLCD.setColor(VGA_WHITE);
         drawPixel(index,randomData[randomDataIndex]);
       }
       randomDataCounter++;
-      if (randomDataCounter==TFT_WIDTH)
+      if (randomDataCounter==randomDataLength)
         randomDataCounter=0;
     }
     myGLCD.drawLine(0,midHeight,TFT_WIDTH-1,midHeight);// shouldn't it be 1 instead of 0 ? nevermind
