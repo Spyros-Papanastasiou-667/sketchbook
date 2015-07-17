@@ -104,6 +104,7 @@ double trackedTime=0/* 0 to 10 sec */;
 /* testing memory limits */
 //#define testLength  40000
 //unsigned short test[testLength];/* damn it! This keeps going down! */
+double secs;
 /*
  *                T  F  T
  */
@@ -120,6 +121,11 @@ unsigned long TFTLoopsPerSec;
 //#define randomDataLength  40000
 //unsigned short randomData[randomDataLength],lastFirstPixel,randomDataCounter=0,previousRandomDataCounter=0,randomDataIndex;
 
+#define graphLength 400/* about 10 Hours */
+unsigned short graph[graphLength],graphCounter=0,lastFirstPixelY,graphIndex;
+
+unsigned long TFTDrawCounter=0;
+
 #ifdef TOUCH
   unsigned short xTouch,yTouch;
 #endif
@@ -132,6 +138,7 @@ String  SDStringOne;
 SdFat sd;
 
 SdFile file;
+unsigned long SDCounter1=0;
 /******************************************************************
  * 
  *           f u n c t i o n   i n i t i a l i z a t i o n
@@ -203,6 +210,8 @@ void setup() {
   lastFirstPixel=randomData[randomDataLength-1-TFT_WIDTH];
 */
 /*===================================================================*/
+  for (int index=graphLength-1;index>graphLength-1-TFT_WIDTH;index--)
+    graph[index]=-1;
 /* testing SRAM */
 //  test[1]=1;
 //  Serial.println(test[testLength-1]);
@@ -432,13 +441,44 @@ void loop() {
   currTFTTime=millis();
   diffTFTTime=abs(currTFTTime- prevTFTTime);
   drawTFTNow=false;
-  if (diffTFTTime >= 1000/* millisecs */){
+  if (diffTFTTime >= 10/* millisecs */){
     prevTFTTime=currTFTTime;
     drawTFTNow=true;
+    SDCounter1++;
+    secs=millis()/1000.0;
+    TFTDrawCounter++;
   }
 
   if (drawTFTNow== true){
 
+      {
+        for (int index=TFT_WIDTH-1;index>=0;index--){
+          graphIndex=index+graphCounter;
+          if (graphIndex>=graphLength)
+            graphIndex-=graphLength;
+
+          myGLCD.setColor(VGA_BLACK);
+          short eraseIndex=graphIndex-1;
+          if (eraseIndex<0)
+            eraseIndex=graphLength-1;
+          if (index==0){
+            short temp=graphIndex-1;
+            if (temp<0)
+              temp=graphLength-1;
+            lastFirstPixelY=graph[temp];
+            drawPixel(index,lastFirstPixelY);
+          }else
+            drawPixel(index,graph[eraseIndex]);
+
+          if (index==TFT_WIDTH-1)
+            graph[graphIndex]=scale( sin(2.0*PI*TFTDrawCounter/TFT_WIDTH)+1 ,2,0,0,TFT_HEIGHT-1);
+          myGLCD.setColor(VGA_WHITE);
+          drawPixel(index, graph[graphIndex]);
+        }
+        graphCounter++;
+        if (graphCounter==graphLength)
+          graphCounter=0;
+      }
       /* 
        *        on random data array    
        */
@@ -556,16 +596,22 @@ void loop() {
     /*
      *    SD : write data
      */
-    if (!file.open("test.txt", O_CREAT | O_WRITE | O_APPEND)) {
+/*------------------------------------------------------------------
+ *      remove this code
+ ***********************************
+    if (!file.open("test.txt", O_CREAT | O_WRITE | O_APPEND)) {/* use O_TRUNC to erase first *//*
       error("file.open");
     }
     char buff[sizeof("3.4028235E+38")];
     float num=millis()/1000.0;
     dtostrf(num,5,3,buff);
-    SDStringOne=String(num);
-    file.println(buff);/* see also file.printField() */
+    file.print(SDCounter1);
+    file.print(',');
+    file.println(buff);/* see also file.printField() *//*
     Serial.println(buff);
     file.close();
+====================================================================
+*/
   }
   
 
@@ -613,6 +659,9 @@ void loop() {
     Serial.println(debugStringTwo);
   */
 
+/*------------------------------------------------------------------
+ *      remove this code
+ ***********************************
   if (Serial.available()) {
     // Close file and stop.
 //    SDWriteHere.close();
@@ -621,21 +670,27 @@ void loop() {
     if (!sdRead.is_open()) {
       error("open");
     }
+    int itemp;
+    char hi;
     float temp;
     while (true){
       if (sdRead.fail())
         break;
-      sdRead >> temp;
+      sdRead >> itemp >> hi >> temp;
       sdRead.skipWhite();
 /*      if (sdRead.fail()) {
         error("bad input");
       }
-*/    Serial.println(temp,3);
+*//*    Serial.print(itemp);
+      Serial.print(hi);
+      Serial.println(temp,3);
     }
 //    if (!sdRead.eof())
 //      error("not eof");
     Serial.println(F("Done"));
     while(1) {}
   }
+  ====================================================================
+  */
 }
 
