@@ -124,7 +124,7 @@ unsigned long TFTLoopsPerSec;
 #define graphLength 400/* about 10 Hours */
 unsigned short graph[graphLength],graphCounter=0,lastFirstPixelY,graphIndex;
 
-unsigned long TFTDrawCounter=0;
+unsigned long TFTDrawCounter=-1;
 
 #ifdef TOUCH
   unsigned short xTouch,yTouch;
@@ -139,6 +139,10 @@ SdFat sd;
 
 SdFile file;
 unsigned long SDCounter1=0;
+/*
+ *                  T   M   P
+ */
+float tmpFloat;
 /******************************************************************
  * 
  *           f u n c t i o n   i n i t i a l i z a t i o n
@@ -194,6 +198,9 @@ void setup() {
   // breadboards.  use SPI_FULL_SPEED for better performance.
   if (!sd.begin(SS, SPI_HALF_SPEED)) {
     sd.initErrorHalt();
+  }
+  if (!file.open("test.txt", O_CREAT | O_WRITE | O_TRUNC)) {/* use O_TRUNC to erase first */
+    error("opening file...");
   }
   
     /*-----------------------------------------------------------------
@@ -470,14 +477,39 @@ void loop() {
           }else
             drawPixel(index,graph[eraseIndex]);
 
-          if (index==TFT_WIDTH-1)
+          if (index==TFT_WIDTH-1){
             graph[graphIndex]=scale( sin(2.0*PI*TFTDrawCounter/TFT_WIDTH)+1 ,2,0,0,TFT_HEIGHT-1);
+            tmpFloat=(sin(2.0*PI*TFTDrawCounter/TFT_WIDTH)+1)/2.0;
+          }
           myGLCD.setColor(VGA_WHITE);
           drawPixel(index, graph[graphIndex]);
         }
         graphCounter++;
         if (graphCounter==graphLength)
           graphCounter=0;
+        /*
+         *    SD : write data
+         */
+        char buff[sizeof("3.4028235E+38")];
+        //tmpFloat(sine...)
+        dtostrf(tmpFloat,5,3,buff);
+        file.print(TFTDrawCounter);file.print(',');file.println(buff)/* see also file.printField() */;
+/*------------------------------------------------------------------
+ *      remove this code
+ ***********************************
+    if (!file.open("test.txt", O_CREAT | O_WRITE | O_APPEND)) {/* use O_TRUNC to erase first *//*
+      error("file.open");
+    }
+    char buff[sizeof("3.4028235E+38")];
+    float num=millis()/1000.0;
+    dtostrf(num,5,3,buff);
+    file.print(SDCounter1);
+    file.print(',');
+    file.println(buff);/* see also file.printField() *//*
+    Serial.println(buff);
+    file.close();
+====================================================================
+*/
       }
       /* 
        *        on random data array    
@@ -692,5 +724,22 @@ void loop() {
   }
   ====================================================================
   */
+  if (Serial.available()){
+    file.close();
+    ifstream fileRead("test.txt");
+    if (!fileRead.is_open())
+      error("open");
+    unsigned long index;
+    char comma;
+    float value;
+    while (true){
+      if (fileRead.fail())
+        break;
+      fileRead >> index >> comma >> value;
+      fileRead.skipWhite();
+      Serial.print(index);Serial.print(comma);Serial.println(value,3);
+    }
+    while(true){}
+  }
 }
 
