@@ -7,6 +7,7 @@
  * Author: Spyros Papanastasiou spyridon.papanastasiou@gmail.com
  * 
  * License:
+ * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 2 of the License, or
  * (at your option) any later version.
@@ -418,7 +419,9 @@ void loop() {
 #endif
   /* remove the following */
 //  delay(100);
-  {/* blink led(pin 13) like the bouncing ball */
+  {/* * * * * * * * * * * * * * * * * * * * * * * * * * * 
+    *     blink led(pin 13) like the bouncing ball
+    * * * * * * * * * * * * * * * * * * * * * * * * * * */
     byte index=0;
     for (int i=1;i<=numOfBumps-1;i++){
       if(trackedTime > t[i-1] && trackedTime <= t[i]){
@@ -448,7 +451,7 @@ void loop() {
   currTFTTime=millis();
   diffTFTTime=abs(currTFTTime- prevTFTTime);
   drawTFTNow=false;
-  if (diffTFTTime >= 10/* millisecs */){
+  if (diffTFTTime >= 0/* millisecs */){
     prevTFTTime=currTFTTime;
     drawTFTNow=true;
     SDCounter1++;
@@ -491,9 +494,12 @@ void loop() {
          *    SD : write data
          */
         char buff[sizeof("3.4028235E+38")];
+        dtostrf(secs,5,3,buff);
+        Serial.println(buff);
+        file.print(buff);file.print(',');
         //tmpFloat(sine...)
         dtostrf(tmpFloat,5,3,buff);
-        file.print(TFTDrawCounter);file.print(',');file.println(buff)/* see also file.printField() */;
+        file.println(buff)/* see also file.printField() */;
 /*------------------------------------------------------------------
  *      remove this code
  ***********************************
@@ -729,7 +735,7 @@ void loop() {
     ifstream fileRead("test.txt");
     if (!fileRead.is_open())
       error("open");
-    unsigned long index;
+    float index;
     char comma;
     float value;
     while (true){
@@ -737,7 +743,7 @@ void loop() {
         break;
       fileRead >> index >> comma >> value;
       fileRead.skipWhite();
-      Serial.print(index);Serial.print(comma);Serial.println(value,3);
+      Serial.print(index,3);Serial.print(comma);Serial.println(value,3);
     }
     while(true){}
   }
