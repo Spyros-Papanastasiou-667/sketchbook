@@ -59,13 +59,23 @@ void loop() {
     x=myTouch.TP_X;
     y=myTouch.TP_Y;
 
-    myGLCD.setColor(VGA_BLACK);
-    myGLCD.setBackColor(VGA_BLACK);
-    myGLCD.print(toDraw,CENTER,TFT_HEIGHT/2-6);
-
     toDraw=String(x)+","+String(y);
     myGLCD.setColor(VGA_WHITE);
     myGLCD.setBackColor(VGA_RED);
     myGLCD.print(toDraw,CENTER,TFT_HEIGHT/2-6);
+
+    myGLCD.setColor(VGA_BLACK);
+    myGLCD.setBackColor(VGA_BLACK);
+    myGLCD.print(toDraw2,CENTER,TFT_HEIGHT/2-6+12);
+  
+    myGLCD.setColor(VGA_WHITE);
+    myGLCD.setBackColor(VGA_RED);
+    toDraw2=String(millis()/1000.0,1);
+    myGLCD.print(toDraw2,CENTER,TFT_HEIGHT/2-6+12);
+  
   }
+  myGLCD.setColor(VGA_BLACK);
+  myGLCD.setBackColor(VGA_BLACK);
+  myGLCD.print(toDraw,CENTER,TFT_HEIGHT/2-6);
+
 }
