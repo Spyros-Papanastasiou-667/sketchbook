@@ -24,6 +24,7 @@ UTFT    myGLCD(ITDB32S,25,26,27,28);
 // Teensy 3.x TFT Test Board                   : 26,31,27,28,29
 // ElecHouse TFT LCD/SD Shield for Arduino Due : 25,26,27,29,30
 //
+// UTouch(TCLK, TCS, TDIN, TDOUT, IRQ);
 UTouch  myTouch( 6, 5, 4, 3, 2);
 // Declare which fonts we will be using
 extern uint8_t SmallFont[];
@@ -38,6 +39,7 @@ void setup() {
   myGLCD.setFont(SmallFont);
 
   myTouch.InitTouch(PORTRAIT);
+//  pinMode(3,INPUT_PULLUP);
 }
 
 int x,y,iteration=0;
