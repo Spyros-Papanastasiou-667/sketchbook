@@ -75,6 +75,7 @@ const double lastMaxHeightPercentage /* before the last bump/ in meters */ = 1/1
 #define TFT_WIDTH 320
 #define TFT_HEIGHT 240
 extern unsigned char SmallFont[];
+extern unsigned char BigFont[];
 /*
  *                   S D   C a r d
  */
@@ -122,8 +123,9 @@ unsigned long TFTLoopsPerSec;
 //#define randomDataLength  40000
 //unsigned short randomData[randomDataLength],lastFirstPixel,randomDataCounter=0,previousRandomDataCounter=0,randomDataIndex;
 
-#define graphLength 400/* about 10 Hours */
-unsigned short graph[graphLength],graphCounter=0,lastFirstPixelY,graphIndex;
+#define graphLength 321/* about 10 Hours *//*beware! there is a problem at high numbers */
+unsigned short graph[graphLength],graphCounter=0,lastFirstPixelY;
+unsigned int graphIndex;
 
 unsigned long TFTDrawCounter=-1;
 
@@ -346,8 +348,11 @@ void setup() {
   lastFirstPixel=randomData[randomDataLength-1-TFT_WIDTH];
 */
 /*===================================================================*/
-  for (int index=graphLength-1;index>graphLength-1-TFT_WIDTH;index--)
-    graph[index]=-1;
+  for (int index=graphLength-1;index>=0/* >graphLength-1-TFT_WIDTH */;index--){
+    graph[index]=TFT_HEIGHT-1;
+    Serial.println(graph[index]);
+  }
+
 /* testing SRAM */
 //  test[1]=1;
 //  Serial.println(test[testLength-1]);
@@ -426,10 +431,19 @@ void setup() {
     myGLCD.setBackColor(VGA_BLACK);
     myGLCD.print("Sth is wrong. Please fsck/format",CENTER,midHeight-12);
     myGLCD.print("after you backup!",CENTER,midHeight);
+    while(true){};
   }
+  myGLCD.fillScr(VGA_RED);
   if (!file.open("test.txt", O_CREAT | O_WRITE | O_TRUNC)) {/* use O_TRUNC to erase first */
+    Serial.println(__LINE__);
+    myGLCD.clrScr();
+    myGLCD.setColor(VGA_RED);
+    myGLCD.setBackColor(VGA_BLACK);
+    myGLCD.print("error opening test.txt",CENTER,midHeight-12);
     error("opening file...");
+    while(true){};
   }
+  myGLCD.fillScr(VGA_WHITE);
 
   myGLCD.clrScr();
   myGLCD.setColor(VGA_RED);
@@ -536,16 +550,16 @@ void loop() {
 
       {
         for (int index=TFT_WIDTH-1;index>=0;index--){
-          graphIndex=index+graphCounter;
+          graphIndex=graphLength - TFT_WIDTH +index+graphCounter;
           if (graphIndex>=graphLength)
             graphIndex-=graphLength;
 
           myGLCD.setColor(VGA_BLACK);
-          short eraseIndex=graphIndex-1;
+          int eraseIndex=graphIndex-1;
           if (eraseIndex<0)
             eraseIndex=graphLength-1;
           if (index==0){
-            short temp=graphIndex-1;
+            long temp=graphIndex-1;
             if (temp<0)
               temp=graphLength-1;
             lastFirstPixelY=graph[temp];
@@ -808,11 +822,16 @@ void loop() {
     Serial.print ("End free space: ");
     Serial.println(freeSpaceString(6));
 
-    file.close();
     myGLCD.clrScr();
     myGLCD.setColor(VGA_RED);
     myGLCD.setBackColor(VGA_BLACK);
-    myGLCD.print("file closed!",CENTER,midHeight-12);
+    myGLCD.setFont(BigFont);
+    if(file.close()==true){
+      myGLCD.print("file closed!",CENTER,midHeight-16);
+    }else{
+      myGLCD.print("W A R N I N G",CENTER,midHeight-16);
+      myGLCD.print("file left open!!",CENTER,midHeight);      
+    }
     ifstream fileRead("test.txt");
     if (!fileRead.is_open())
       error("open");
