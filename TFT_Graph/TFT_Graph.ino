@@ -7,16 +7,16 @@
  * Author: Spyros Papanastasiou spyridon.papanastasiou@gmail.com
  * 
  * License:
- * This program is free software; you can redistribute it and/or modify
+ * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 2 of the License, or
+ * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -103,6 +103,9 @@ double  v[numOfBumps]/* velocity after each bump */,
 unsigned long prevTime=0,currTime=0,diffTime=0,
               prevTime2=0,currTime2=0,diffTime2=0;
 double trackedTime=0/* 0 to 10 sec */;
+/* loop timer */
+unsigned long loopTime=0,loopTimeDifferenceToRealTime;
+double trackedLoopTime=0;
 /* testing memory limits */
 //#define testLength  40000
 //unsigned short test[testLength];/* damn it! This keeps going down! */
@@ -123,7 +126,7 @@ unsigned long TFTLoopsPerSec;
 //#define randomDataLength  40000
 //unsigned short randomData[randomDataLength],lastFirstPixel,randomDataCounter=0,previousRandomDataCounter=0,randomDataIndex;
 
-#define graphLength 321/* about 10 Hours *//*beware! there is a problem at high numbers */
+#define graphLength 32000/* about 10 Hours *//*beware! there is a problem at high numbers */
 unsigned short graph[graphLength],graphCounter=0,lastFirstPixelY;
 unsigned int graphIndex;
 
@@ -350,7 +353,7 @@ void setup() {
 /*===================================================================*/
   for (int index=graphLength-1;index>=0/* >graphLength-1-TFT_WIDTH */;index--){
     graph[index]=TFT_HEIGHT-1;
-    Serial.println(graph[index]);
+//    Serial.println(graph[index]); /* too long to print */
   }
 
 /* testing SRAM */
