@@ -110,6 +110,7 @@ double trackedLoopTime=0;
 //#define testLength  40000
 //unsigned short test[testLength];/* damn it! This keeps going down! */
 double secs;
+unsigned short voltage;
 /*
  *                T  F  T
  */
@@ -132,6 +133,8 @@ unsigned int graphIndex;
 
 unsigned long TFTDrawCounter=-1;
 
+boolean stopDraw=false;
+
 #ifdef TOUCH
   unsigned short xTouch,yTouch;
 #endif
@@ -149,6 +152,7 @@ unsigned long SDCounter1=0;
  *                  T   M   P
  */
 float tmpFloat;
+unsigned short tmpUShort;
 /******************************************************************
  * 
  *           f u n c t i o n   i n i t i a l i z a t i o n
@@ -306,7 +310,7 @@ int drawPixel(unsigned short x, unsigned short y){
  *******************************************************************/
 String freeSpaceString(unsigned short precision){
   float fs = 0.000512 * sd.vol()->freeClusterCount() * sd.vol()->blocksPerCluster();
-  String fsString=String(fs,precision)+" MiB";
+  String fsString=String(fs,precision)+" MB";
   return fsString;
 }
 float freeSpace(){
@@ -321,6 +325,41 @@ boolean buttonState(unsigned short button){
   else
     return false;
 }
+boolean debouncePush(unsigned short button, unsigned long milliseconds){
+  float percentagetoOvercome=68/100.0;
+  unsigned long start=millis(),stateOn=0,stateOff=0,total=0;
+  while(millis()-start <=milliseconds){
+    bool state=buttonState(button);
+    if (state==true)
+      stateOn++;
+    else
+      stateOff++;
+
+    total++;
+  }
+  if (stateOn>stateOff && float(stateOn/total)>=percentagetoOvercome)
+    return true;
+  else
+    return false;
+}
+boolean debouncePush(unsigned short button){
+  unsigned long milliseconds=50;
+  float percentagetoOvercome=68/100.0;
+  unsigned long start=millis(),stateOn=0,stateOff=0,total=0;
+  while(millis()-start <=milliseconds){
+    bool state=buttonState(button);
+    if (state==true)
+      stateOn++;
+    else
+      stateOff++;
+
+    total++;
+  }
+  if (stateOn>stateOff && float(stateOn/total)>=percentagetoOvercome)
+    return true;
+  else
+    return false;
+}
 /*******************************************************************
  * 
  *                          S E T U P
@@ -328,7 +367,7 @@ boolean buttonState(unsigned short button){
  *******************************************************************/
 void setup() {
   // put your setup code here, to run once:
-  Serial.begin(9600);
+  Serial.begin(115200);
   randomSeed(analogRead(A0));
   // Setup the LCD
   myGLCD.InitLCD(LANDSCAPE);
@@ -475,6 +514,11 @@ void setup() {
 void loop() {
   // put your main code here, to run repeatedly:
 
+  if (buttonState(9)==true)
+    if (debouncePush(9)==true){
+      stopDraw=!stopDraw;
+      myGLCD.clrScr();
+    }
   /* code to keep track of 10 sec 
    *  trackedTime: 0 ---> 10 sec
   */
@@ -552,43 +596,53 @@ void loop() {
   if (drawTFTNow== true){
 
       {
-        for (int index=TFT_WIDTH-1;index>=0;index--){
-          graphIndex=graphLength - TFT_WIDTH +index+graphCounter;
-          if (graphIndex>=graphLength)
-            graphIndex-=graphLength;
-
-          myGLCD.setColor(VGA_BLACK);
-          int eraseIndex=graphIndex-1;
-          if (eraseIndex<0)
-            eraseIndex=graphLength-1;
-          if (index==0){
-            long temp=graphIndex-1;
-            if (temp<0)
-              temp=graphLength-1;
-            lastFirstPixelY=graph[temp];
-            drawPixel(index,lastFirstPixelY);
-          }else
-            drawPixel(index,graph[eraseIndex]);
-
-          if (index==TFT_WIDTH-1){
-            graph[graphIndex]=scale( sin(2.0*PI*TFTDrawCounter/TFT_WIDTH)+1 ,2,0,0,TFT_HEIGHT-1);
-            tmpFloat=(sin(2.0*PI*TFTDrawCounter/TFT_WIDTH)+1)/2.0;
+        voltage=analogRead(A0);
+        if (!stopDraw){
+          for (int index=TFT_WIDTH-1;index>=0;index--){
+            graphIndex=graphLength - TFT_WIDTH +index+graphCounter;
+            if (graphIndex>=graphLength)
+              graphIndex-=graphLength;
+  
+            myGLCD.setColor(VGA_BLACK);
+            int eraseIndex=graphIndex-1;
+            if (eraseIndex<0)
+              eraseIndex=graphLength-1;
+            if (index==0){
+              long temp=graphIndex-1;
+              if (temp<0)
+                temp=graphLength-1;
+              lastFirstPixelY=graph[temp];
+              drawPixel(index,lastFirstPixelY);
+            }else
+              drawPixel(index,graph[eraseIndex]);
+  
+            if (index==TFT_WIDTH-1){
+              /* simple sin (fit to one screen)
+              graph[graphIndex]=scale( sin(2.0*PI*TFTDrawCounter/TFT_WIDTH)+1 ,2,0,0,TFT_HEIGHT-1);*/
+  
+              graph[graphIndex]=scale(voltage,1023,0,0,TFT_HEIGHT-1);
+  //            tmpFloat=(sin(2.0*PI*TFTDrawCounter/TFT_WIDTH)+1)/2.0;
+            }
+  
+            myGLCD.setColor(VGA_WHITE);
+            drawPixel(index, graph[graphIndex]);
           }
-          myGLCD.setColor(VGA_WHITE);
-          drawPixel(index, graph[graphIndex]);
+          graphCounter++;
+          if (graphCounter==graphLength)
+            graphCounter=0;
         }
-        graphCounter++;
-        if (graphCounter==graphLength)
-          graphCounter=0;
         /*
          *    SD : write data
          */
         char buff[sizeof("3.4028235E+38")];
         dtostrf(secs,5,3,buff);
-        Serial.println(buff);
+        Serial.print(buff);Serial.print(',');
         file.print(buff);file.print(',');
         //tmpFloat(sine...)
-        dtostrf(tmpFloat,5,3,buff);
+//        dtostrf(tmpFloat,5,3,buff);
+        tmpUShort=voltage;
+        itoa(tmpUShort,buff,10);
+        Serial.println(buff);
         file.println(buff)/* see also file.printField() */;
 /*------------------------------------------------------------------
  *      remove this code
@@ -618,21 +672,23 @@ void loop() {
         randomDataIndex=index+randomDataCounter;/* correct! *//*
         if (randomDataIndex>=randomDataLength)
           randomDataIndex-=randomDataLength;
-        
-        myGLCD.setColor(VGA_BLACK);
-        int indexToErase=randomDataIndex-1;
-        if (indexToErase<0)
-          indexToErase=randomDataLength-1;
-        if(index==0){
-          int temp=randomDataIndex-1;
-          if (temp<0){
-            temp=randomDataLength-1;
-          }
-          lastFirstPixel=randomData[temp];
-          drawPixel(index,lastFirstPixel);
-        }else
-          drawPixel(index,randomData[indexToErase]);
 
+        if(!stopDraw){
+          myGLCD.setColor(VGA_BLACK);
+          int indexToErase=randomDataIndex-1;
+          if (indexToErase<0)
+            indexToErase=randomDataLength-1;
+          if(index==0){
+            int temp=randomDataIndex-1;
+            if (temp<0){
+              temp=randomDataLength-1;
+            }
+            lastFirstPixel=randomData[temp];
+            drawPixel(index,lastFirstPixel);
+          }else
+            drawPixel(index,randomData[indexToErase]);
+        }
+  
         if (index==TFT_WIDTH-1){
           /* the following code line was meant for when randomDataLength == TFT_WIDTH.
            * Back then, the first pixel would become last and change, so we need a
@@ -651,16 +707,16 @@ void loop() {
     }
 */
  
-    myGLCD.drawLine(0,midHeight,TFT_WIDTH-1,midHeight);// shouldn't it be 1 instead of 0 ? nevermind
+//    myGLCD.drawLine(0,midHeight,TFT_WIDTH-1,midHeight);
     myGLCD.setColor(VGA_RED);
     myGLCD.setBackColor(VGA_BLACK);
-    myGLCD.print(TFTLoopsPerSecString,0,0);// Now, WHY is it 0,0 and not 1,1 ? nevermind
+    myGLCD.print(TFTLoopsPerSecString,0,0);
 
     myGLCD.setColor(VGA_WHITE);
-    TFTStringOne=String(analogRead(A0))+"/1023";
+//    TFTStringOne=String(analogRead(A0))+"/1023";
     TFTStringTwo=String(h,3)+"/"+String(H0,3);
-    myGLCD.print(TFTStringOne,CENTER,midHeight-12);
-    myGLCD.print(TFTStringTwo,CENTER,midHeight);
+//    myGLCD.print(TFTStringOne,CENTER,midHeight-12);
+    myGLCD.print(TFTStringTwo,CENTER,TFT_HEIGHT-12);
 
 /*
  *      A T O F
@@ -820,7 +876,7 @@ void loop() {
   }
   ====================================================================
   */
-  if (Serial.available()||buttonState(11)==true){
+  if (Serial.available()||buttonState(10)==true){
     file.flush();
     Serial.print ("End free space: ");
     Serial.println(freeSpaceString(6));
@@ -840,13 +896,13 @@ void loop() {
       error("open");
     float index;
     char comma;
-    float value;
+    unsigned short value;
     while (true){
       if (fileRead.fail())
         break;
       fileRead >> index >> comma >> value;
       fileRead.skipWhite();
-      Serial.print(index,3);Serial.print(comma);Serial.println(value,3);
+      Serial.print(index,3);Serial.print(comma);Serial.println(value);
     }
     myGLCD.print("Done reading from SD",CENTER,midHeight);
     while(true){}
@@ -1361,7 +1417,7 @@ void format() {
   }
   cardCapacityMB = (cardSizeBlocks + 2047)/2048;
 
-  TFTStringOne="Card Size: "+String(cardCapacityMB)+" MiB";
+  TFTStringOne="Card Size: "+String(cardCapacityMB)+" MB";
   myGLCD.print(TFTStringOne,CENTER,midHeight-6);
   TFTStringOne="Erasing and formating...";
   myGLCD.print(TFTStringOne,CENTER,midHeight-6+12);  
