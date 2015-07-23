@@ -133,7 +133,7 @@ unsigned long TFTLoopsPerSec;
 unsigned const int graphLength=20000;/* about 10 Hours *//*beware! there is a problem at high numbers *//* keep it >TFT_WIDTH */
 unsigned short graph[graphLength],zoomedGraph[int(TFT_WIDTH)],zoomedGraphMax[int(TFT_WIDTH)],zoomedGraphMin[int(TFT_WIDTH)],graphCounter=0,lastFirstPixelY;
 unsigned int graphIndex,graphStart/* graphStart=graphLength-1 <-- this didn't work here */,graphEnd,RAMDistance;
-bool stillGettingFilled=true;
+bool stillGettingFilled=true,stopDrawingPauseScreen=false;
 
 unsigned long TFTDrawCounter=-1;
 
@@ -654,115 +654,118 @@ void loop() {
           graphCounter++;
           if (graphCounter==graphLength)
             graphCounter=0;
+          if(stopDrawingPauseScreen==true)
+            stopDrawingPauseScreen=false;
         }else{
-          if (stillGettingFilled)
-            RAMDistance=graphLength-graphStart + graphEnd;
-          else
-            RAMDistance=graphLength;
-
-          if (RAMDistance>=TFT_WIDTH){//we should also check for the variables. e.g. bool first_run
-            graphStart++;graphEnd++;
-            
-            // 0..........graphEnd............graphStart........graphLength-1
-            short i=0,j;
-            float areaWidth=RAMDistance/TFT_WIDTH;
-//            Serial.print("RAMDistance : ");Serial.println(RAMDistance);
-//            Serial.print("areaWidth : ");Serial.println(areaWidth);
-
-            graphIndex=graphStart-1;
-            while (true){
-/*              graphIndex++;
-              if (graphIndex==graphLength)
-                graphIndex=0;
-*/              /* code here */
-              int areaStart=i*areaWidth;
-              int areaStop=(i+1)*areaWidth;
-              String toPrint="areaStart : "+String(areaStart);
-//              Serial.println(toPrint);
-              toPrint="areaStop : "+String(areaStop);
-//              Serial.println(toPrint);
-              float average=0;
-              int iterations=0;
-              int areaMax=0,areaMin=TFT_HEIGHT-1;
-              for (int j=areaStart;j<areaStop;j++){
-
-                graphIndex++;
+          if (!stopDrawingPauseScreen){
+            if (stillGettingFilled)
+              RAMDistance=graphLength-graphStart + graphEnd;
+            else
+              RAMDistance=graphLength;
+  
+            if (RAMDistance>=TFT_WIDTH){//we should also check for the variables. e.g. bool first_run
+              graphStart++;graphEnd++;
+              
+              // 0..........graphEnd............graphStart........graphLength-1
+              short i=0,j;
+              float areaWidth=RAMDistance/TFT_WIDTH;
+  //            Serial.print("RAMDistance : ");Serial.println(RAMDistance);
+  //            Serial.print("areaWidth : ");Serial.println(areaWidth);
+  
+              graphIndex=graphStart-1;
+              while (true){
+  /*              graphIndex++;
                 if (graphIndex==graphLength)
                   graphIndex=0;
-                if (graphIndex==graphEnd)
+  */              /* code here */
+                int areaStart=i*areaWidth;
+                int areaStop=(i+1)*areaWidth;
+                String toPrint="areaStart : "+String(areaStart);
+  //              Serial.println(toPrint);
+                toPrint="areaStop : "+String(areaStop);
+  //              Serial.println(toPrint);
+                float average=0;
+                int iterations=0;
+                int areaMax=0,areaMin=TFT_HEIGHT-1;
+                for (int j=areaStart;j<areaStop;j++){
+  
+                  graphIndex++;
+                  if (graphIndex==graphLength)
+                    graphIndex=0;
+                  if (graphIndex==graphEnd)
+                    break;
+  
+                  if (areaMax<graph[graphIndex])
+                    areaMax=graph[graphIndex]
+                    ;
+                  if (areaMin> graph[graphIndex])
+                    areaMin=graph[graphIndex];
+                  
+                  iterations++;
+                  average+=graph[graphIndex];
+                }
+  //              String toPrint="iterations : " +String(iterations);
+  //              Serial.println(toPrint);
+                average/=iterations;
+                zoomedGraph[i]=average;
+                zoomedGraphMax[i]=areaMax;
+                zoomedGraphMin[i]=areaMin;
+  //              toPrint="zoomedGraph["+String(i)+"] "+String(zoomedGraph[i]);
+  //              Serial.println(toPrint);
+  //              Serial.println(graphIndex);
+                /*************/
+                i++;
+                if (graphIndex==graphEnd || i==TFT_WIDTH)
                   break;
-
-                if (areaMax<graph[graphIndex])
-                  areaMax=graph[graphIndex]
-                  ;
-                if (areaMin> graph[graphIndex])
-                  areaMin=graph[graphIndex];
-                
-                iterations++;
-                average+=graph[graphIndex];
               }
-//              String toPrint="iterations : " +String(iterations);
-//              Serial.println(toPrint);
-              average/=iterations;
-              zoomedGraph[i]=average;
-              zoomedGraphMax[i]=areaMax;
-              zoomedGraphMin[i]=areaMin;
-//              toPrint="zoomedGraph["+String(i)+"] "+String(zoomedGraph[i]);
-//              Serial.println(toPrint);
-//              Serial.println(graphIndex);
-              /*************/
-              i++;
-              if (graphIndex==graphEnd || i==TFT_WIDTH)
-                break;
+  //            Serial.println(__LINE__);
+              for (short i=0;i<TFT_WIDTH;i++){
+  /*              colorVector=scale(zoomedGraph[i],TFT_HEIGHT-1,0,0,255);
+                myGLCD.setColor(0+colorVector,255,255-colorVector);
+                drawPixel(i,zoomedGraph[i]);
+  */
+                colorVector=scale(zoomedGraphMax[i],TFT_HEIGHT-1,0,0,255);
+                myGLCD.setColor(0+colorVector,255,255-colorVector);
+                drawPixel(i,zoomedGraphMax[i]);
+                colorVector=scale(zoomedGraphMin[i],TFT_HEIGHT-1,0,0,255);
+                myGLCD.setColor(0+colorVector,255,255-colorVector);
+                drawPixel(i,zoomedGraphMin[i]);
+              }
+              //same here code for index==graphEnd
+  
+              graphStart--;graphEnd--;
             }
-//            Serial.println(__LINE__);
-            myGLCD.clrScr();
-            for (short i=0;i<TFT_WIDTH;i++){
-/*              colorVector=scale(zoomedGraph[i],TFT_HEIGHT-1,0,0,255);
-              myGLCD.setColor(0+colorVector,255,255-colorVector);
-              drawPixel(i,zoomedGraph[i]);
-*/
-              colorVector=scale(zoomedGraphMax[i],TFT_HEIGHT-1,0,0,255);
-              myGLCD.setColor(0+colorVector,255,255-colorVector);
-              drawPixel(i,zoomedGraphMax[i]);
-              colorVector=scale(zoomedGraphMin[i],TFT_HEIGHT-1,0,0,255);
-              myGLCD.setColor(0+colorVector,255,255-colorVector);
-              drawPixel(i,zoomedGraphMin[i]);
-            }
-            //same here code for index==graphEnd
-
-            graphStart--;graphEnd--;
           }
+          /*
+           *    SD : write data
+           */
+          char buff[sizeof("3.4028235E+38")];
+          dtostrf(secs,5,3,buff);
+  //        Serial.print(buff);Serial.print(',');
+          file.print(buff);file.print(',');
+          //tmpFloat(sine...)
+  //        dtostrf(tmpFloat,5,3,buff);
+          tmpUShort=voltage;
+          itoa(tmpUShort,buff,10);
+  //        Serial.println(buff);
+          file.println(buff)/* see also file.printField() */;
+  /*------------------------------------------------------------------
+   *      remove this code
+   ***********************************
+      if (!file.open("test.txt", O_CREAT | O_WRITE | O_APPEND)) {/* use O_TRUNC to erase first *//*
+        error("file.open");
+      }
+      char buff[sizeof("3.4028235E+38")];
+      float num=millis()/1000.0;
+      dtostrf(num,5,3,buff);
+      file.print(SDCounter1);
+      file.print(',');
+      file.println(buff);/* see also file.printField() *//*
+      Serial.println(buff);
+      file.close();
+  ====================================================================
+  */      stopDrawingPauseScreen=true;
         }
-        /*
-         *    SD : write data
-         */
-        char buff[sizeof("3.4028235E+38")];
-        dtostrf(secs,5,3,buff);
-//        Serial.print(buff);Serial.print(',');
-        file.print(buff);file.print(',');
-        //tmpFloat(sine...)
-//        dtostrf(tmpFloat,5,3,buff);
-        tmpUShort=voltage;
-        itoa(tmpUShort,buff,10);
-//        Serial.println(buff);
-        file.println(buff)/* see also file.printField() */;
-/*------------------------------------------------------------------
- *      remove this code
- ***********************************
-    if (!file.open("test.txt", O_CREAT | O_WRITE | O_APPEND)) {/* use O_TRUNC to erase first *//*
-      error("file.open");
-    }
-    char buff[sizeof("3.4028235E+38")];
-    float num=millis()/1000.0;
-    dtostrf(num,5,3,buff);
-    file.print(SDCounter1);
-    file.print(',');
-    file.println(buff);/* see also file.printField() *//*
-    Serial.println(buff);
-    file.close();
-====================================================================
-*/
       }
       /* 
        *        on random data array    
