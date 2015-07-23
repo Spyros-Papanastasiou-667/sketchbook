@@ -32,6 +32,8 @@
  *  
  *  also be VERY carefull on mult/div with integers! ALWAYS use #.0!!
  *  
+ *  also arreyLengths should all be const
+ *  
  *  in this program, my main assumption is that at each bump, the kinetic
  *  energy lost is a fraction (a) of the kinetic energy it had before the
  *  bump.
@@ -72,8 +74,8 @@ const double lastMaxHeightPercentage /* before the last bump/ in meters */ = 1/1
 /*
  *                      T F T
  */
-#define TFT_WIDTH 320
-#define TFT_HEIGHT 240
+#define TFT_WIDTH 320.0
+#define TFT_HEIGHT 240.0
 extern unsigned char SmallFont[];
 extern unsigned char BigFont[];
 /*
@@ -110,6 +112,7 @@ double trackedLoopTime=0;
 //#define testLength  40000
 //unsigned short test[testLength];/* damn it! This keeps going down! */
 double secs;
+bool firstLoop=true;
 unsigned short voltage;
 /*
  *                T  F  T
@@ -121,19 +124,22 @@ String  TFTStringOne,TFTStringTwo;
 /* variables about the time on which to draw the TFT */
 unsigned long diffTFTTime=0,currTFTTime=0,prevTFTTime=0;
 boolean drawTFTNow=true;
-String TFTLoopsPerSecString;
+String TFTLoopsPerSecString,previousTFTLoopsperSecString;
 unsigned long TFTLoopsPerSec;
 
 //#define randomDataLength  40000
 //unsigned short randomData[randomDataLength],lastFirstPixel,randomDataCounter=0,previousRandomDataCounter=0,randomDataIndex;
 
-#define graphLength 32000/* about 10 Hours *//*beware! there is a problem at high numbers */
-unsigned short graph[graphLength],graphCounter=0,lastFirstPixelY;
-unsigned int graphIndex;
+unsigned const int graphLength=20000;/* about 10 Hours *//*beware! there is a problem at high numbers *//* keep it >TFT_WIDTH */
+unsigned short graph[graphLength],zoomedGraph[int(TFT_WIDTH)],zoomedGraphMax[int(TFT_WIDTH)],zoomedGraphMin[int(TFT_WIDTH)],graphCounter=0,lastFirstPixelY;
+unsigned int graphIndex,graphStart/* graphStart=graphLength-1 <-- this didn't work here */,graphEnd,RAMDistance;
+bool stillGettingFilled=true;
 
 unsigned long TFTDrawCounter=-1;
 
 boolean stopDraw=false;
+
+byte colorVector;
 
 #ifdef TOUCH
   unsigned short xTouch,yTouch;
@@ -432,6 +438,7 @@ void setup() {
   displayWidth=myGLCD.getDisplayXSize();
   midHeight=( 1 + (TFT_HEIGHT-1) )/2;
   midWidth=(1 + (TFT_WIDTH -1) )/2;
+  graphStart=graphLength-1;
   /*=====================================*/
   myGLCD.setColor(VGA_RED);
   myGLCD.setBackColor(VGA_BLACK);
@@ -623,26 +630,122 @@ void loop() {
               graph[graphIndex]=scale(voltage,1023,0,0,TFT_HEIGHT-1);
   //            tmpFloat=(sin(2.0*PI*TFTDrawCounter/TFT_WIDTH)+1)/2.0;
             }
-  
-            myGLCD.setColor(VGA_WHITE);
+            colorVector=scale(graph[graphIndex],TFT_HEIGHT-1,0,0,255);
+            myGLCD.setColor(0+colorVector,0,255-colorVector);
             drawPixel(index, graph[graphIndex]);
           }
+          graphEnd=graphLength - 1 + graphCounter;//graphEnd==graphIndex
+          if (graphEnd>=graphLength)
+            graphEnd-=graphLength;
+//          Serial.print("graphEnd : ");Serial.println(graphEnd);
+          if (!stillGettingFilled){
+            graphStart=graphEnd+1;
+            if (graphStart>=graphLength)
+              graphStart=0;
+          }else{
+            if (graphStart==graphEnd && !firstLoop){
+              graphStart=graphEnd+1;
+              if (graphStart>=graphLength)
+                graphStart=0;
+              stillGettingFilled=false;
+            }
+          }
+//          Serial.print("graphStart : ");Serial.println(graphStart);
           graphCounter++;
           if (graphCounter==graphLength)
             graphCounter=0;
+        }else{
+          if (stillGettingFilled)
+            RAMDistance=graphLength-graphStart + graphEnd;
+          else
+            RAMDistance=graphLength;
+
+          if (RAMDistance>=TFT_WIDTH){//we should also check for the variables. e.g. bool first_run
+            graphStart++;graphEnd++;
+            
+            // 0..........graphEnd............graphStart........graphLength-1
+            short i=0,j;
+            float areaWidth=RAMDistance/TFT_WIDTH;
+//            Serial.print("RAMDistance : ");Serial.println(RAMDistance);
+//            Serial.print("areaWidth : ");Serial.println(areaWidth);
+
+            graphIndex=graphStart-1;
+            while (true){
+/*              graphIndex++;
+              if (graphIndex==graphLength)
+                graphIndex=0;
+*/              /* code here */
+              int areaStart=i*areaWidth;
+              int areaStop=(i+1)*areaWidth;
+              String toPrint="areaStart : "+String(areaStart);
+//              Serial.println(toPrint);
+              toPrint="areaStop : "+String(areaStop);
+//              Serial.println(toPrint);
+              float average=0;
+              int iterations=0;
+              int areaMax=0,areaMin=TFT_HEIGHT-1;
+              for (int j=areaStart;j<areaStop;j++){
+
+                graphIndex++;
+                if (graphIndex==graphLength)
+                  graphIndex=0;
+                if (graphIndex==graphEnd)
+                  break;
+
+                if (areaMax<graph[graphIndex])
+                  areaMax=graph[graphIndex]
+                  ;
+                if (areaMin> graph[graphIndex])
+                  areaMin=graph[graphIndex];
+                
+                iterations++;
+                average+=graph[graphIndex];
+              }
+//              String toPrint="iterations : " +String(iterations);
+//              Serial.println(toPrint);
+              average/=iterations;
+              zoomedGraph[i]=average;
+              zoomedGraphMax[i]=areaMax;
+              zoomedGraphMin[i]=areaMin;
+//              toPrint="zoomedGraph["+String(i)+"] "+String(zoomedGraph[i]);
+//              Serial.println(toPrint);
+//              Serial.println(graphIndex);
+              /*************/
+              i++;
+              if (graphIndex==graphEnd || i==TFT_WIDTH)
+                break;
+            }
+//            Serial.println(__LINE__);
+            myGLCD.clrScr();
+            for (short i=0;i<TFT_WIDTH;i++){
+/*              colorVector=scale(zoomedGraph[i],TFT_HEIGHT-1,0,0,255);
+              myGLCD.setColor(0+colorVector,255,255-colorVector);
+              drawPixel(i,zoomedGraph[i]);
+*/
+              colorVector=scale(zoomedGraphMax[i],TFT_HEIGHT-1,0,0,255);
+              myGLCD.setColor(0+colorVector,255,255-colorVector);
+              drawPixel(i,zoomedGraphMax[i]);
+              colorVector=scale(zoomedGraphMin[i],TFT_HEIGHT-1,0,0,255);
+              myGLCD.setColor(0+colorVector,255,255-colorVector);
+              drawPixel(i,zoomedGraphMin[i]);
+            }
+            //same here code for index==graphEnd
+
+            graphStart--;graphEnd--;
+          }
         }
         /*
          *    SD : write data
          */
         char buff[sizeof("3.4028235E+38")];
         dtostrf(secs,5,3,buff);
-        Serial.print(buff);Serial.print(',');
+//        Serial.print(buff);Serial.print(',');
         file.print(buff);file.print(',');
         //tmpFloat(sine...)
 //        dtostrf(tmpFloat,5,3,buff);
         tmpUShort=voltage;
         itoa(tmpUShort,buff,10);
-        Serial.println(buff);
+//        Serial.println(buff);
         file.println(buff)/* see also file.printField() */;
 /*------------------------------------------------------------------
  *      remove this code
@@ -673,21 +776,19 @@ void loop() {
         if (randomDataIndex>=randomDataLength)
           randomDataIndex-=randomDataLength;
 
-        if(!stopDraw){
-          myGLCD.setColor(VGA_BLACK);
-          int indexToErase=randomDataIndex-1;
-          if (indexToErase<0)
-            indexToErase=randomDataLength-1;
-          if(index==0){
-            int temp=randomDataIndex-1;
-            if (temp<0){
-              temp=randomDataLength-1;
-            }
-            lastFirstPixel=randomData[temp];
-            drawPixel(index,lastFirstPixel);
-          }else
-            drawPixel(index,randomData[indexToErase]);
-        }
+        myGLCD.setColor(VGA_BLACK);
+        int indexToErase=randomDataIndex-1;
+        if (indexToErase<0)
+          indexToErase=randomDataLength-1;
+        if(index==0){
+          int temp=randomDataIndex-1;
+          if (temp<0){
+            temp=randomDataLength-1;
+          }
+          lastFirstPixel=randomData[temp];
+          drawPixel(index,lastFirstPixel);
+        }else
+          drawPixel(index,randomData[indexToErase]);
   
         if (index==TFT_WIDTH-1){
           /* the following code line was meant for when randomDataLength == TFT_WIDTH.
@@ -708,9 +809,15 @@ void loop() {
 */
  
 //    myGLCD.drawLine(0,midHeight,TFT_WIDTH-1,midHeight);
-    myGLCD.setColor(VGA_RED);
-    myGLCD.setBackColor(VGA_BLACK);
-    myGLCD.print(TFTLoopsPerSecString,0,0);
+//    if (TFTLoopsPerSecString!=previousTFTLoopsperSecString){
+      myGLCD.setColor(VGA_BLACK);
+      myGLCD.setBackColor(VGA_BLACK);
+      myGLCD.print("12345 lps",0,0);
+      myGLCD.setColor(VGA_RED);
+      myGLCD.setBackColor(VGA_BLACK);
+      myGLCD.print(TFTLoopsPerSecString,0,0);
+//      previousTFTLoopsperSecString=TFTLoopsPerSecString;
+//    }
 
     myGLCD.setColor(VGA_WHITE);
 //    TFTStringOne=String(analogRead(A0))+"/1023";
@@ -907,6 +1014,7 @@ void loop() {
     myGLCD.print("Done reading from SD",CENTER,midHeight);
     while(true){}
   }
+  firstLoop=false;
 }
 /*-------------------------------------------------------------------
  * 
