@@ -125,6 +125,7 @@ String  TFTStringOne,TFTStringTwo;
 unsigned long diffTFTTime=0,currTFTTime=0,prevTFTTime=0;
 boolean drawTFTNow=true;
 String TFTLoopsPerSecString,previousTFTLoopsperSecString;
+int lps;
 unsigned long TFTLoopsPerSec;
 
 //#define randomDataLength  40000
@@ -374,6 +375,7 @@ boolean debouncePush(unsigned short button){
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(115200);
+  analogReadResolution(12);
   randomSeed(analogRead(A0));
   // Setup the LCD
   myGLCD.InitLCD(LANDSCAPE);
@@ -505,7 +507,7 @@ void setup() {
   TFTStringOne="free dayes : " + String(freeSpaceInDays);
   myGLCD.print(TFTStringOne,CENTER,midHeight-6+12);
   
-  delay(5000);
+  delay(3000);
   myGLCD.clrScr();
 
   /*
@@ -539,6 +541,7 @@ void loop() {
     Serial.println(float(loopsPerSec/totalSecs),2);
     loopsPerSec=0;
     TFTLoopsPerSecString=String(TFTLoopsPerSec/totalSecs)+" lps";
+    lps=TFTLoopsPerSec/totalSecs;
     TFTLoopsPerSec=0;
   }else{
     trackedTime=diffTime/1000.0/* convert to secs */;
@@ -627,7 +630,7 @@ void loop() {
               /* simple sin (fit to one screen)
               graph[graphIndex]=scale( sin(2.0*PI*TFTDrawCounter/TFT_WIDTH)+1 ,2,0,0,TFT_HEIGHT-1);*/
   
-              graph[graphIndex]=scale(voltage,1023,0,0,TFT_HEIGHT-1);
+              graph[graphIndex]=scale(voltage,4095,0,0,TFT_HEIGHT-1);
   //            tmpFloat=(sin(2.0*PI*TFTDrawCounter/TFT_WIDTH)+1)/2.0;
             }
             colorVector=scale(graph[graphIndex],TFT_HEIGHT-1,0,0,255);
@@ -813,17 +816,16 @@ void loop() {
  
 //    myGLCD.drawLine(0,midHeight,TFT_WIDTH-1,midHeight);
 //    if (TFTLoopsPerSecString!=previousTFTLoopsperSecString){
-      myGLCD.setColor(VGA_BLACK);
-      myGLCD.setBackColor(VGA_BLACK);
-      myGLCD.print("12345 lps",0,0);
       myGLCD.setColor(VGA_RED);
       myGLCD.setBackColor(VGA_BLACK);
-      myGLCD.print(TFTLoopsPerSecString,0,0);
+      char buff[sizeof("123 lps")];
+      sprintf(buff,"%3i lps",lps);
+      myGLCD.print(buff,0,0);
 //      previousTFTLoopsperSecString=TFTLoopsPerSecString;
 //    }
 
     myGLCD.setColor(VGA_WHITE);
-//    TFTStringOne=String(analogRead(A0))+"/1023";
+//    TFTStringOne=String(analogRead(A0))+"/4095";
     TFTStringTwo=String(h,3)+"/"+String(H0,3);
 //    myGLCD.print(TFTStringOne,CENTER,midHeight-12);
     myGLCD.print(TFTStringTwo,CENTER,TFT_HEIGHT-12);
