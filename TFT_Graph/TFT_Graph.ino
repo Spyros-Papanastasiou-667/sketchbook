@@ -136,10 +136,11 @@ unsigned long TFTLoopsPerSec;
 //#define randomDataLength  40000
 //unsigned short randomData[randomDataLength],lastFirstPixel,randomDataCounter=0,previousRandomDataCounter=0,randomDataIndex;
 
-unsigned const int graphLength=20000;/* about 10 Hours *//*beware! there is a problem at high numbers *//* keep it >TFT_WIDTH */
+unsigned const int graphLength=400;/* about 10 Hours *//*beware! there is a problem at high numbers *//* keep it >TFT_WIDTH */
+long zoomedGraphStart,zoomedGraphEnd;
 unsigned short graph[graphLength],zoomedGraph[int(TFT_WIDTH)],zoomedGraphMax[int(TFT_WIDTH)],zoomedGraphMin[int(TFT_WIDTH)],graphCounter=0,lastFirstPixelY;
 unsigned int graphIndex,graphStart/* graphStart=graphLength-1 <-- this didn't work here */,graphEnd,RAMDistance;
-bool stillGettingFilled=true,stopDrawingPauseScreen=false,stopDrawingPauseZoomScreen=false;
+bool stillGettingFilled=true,stopDrawingPauseScreen=false,stopDrawingPauseZoomScreen=false,drawZoomAreaNow=false;
 short zoomRight=320,zoomLeft=320;
 
 unsigned long TFTDrawCounter=-1;
@@ -166,6 +167,8 @@ unsigned long SDCounter1=0;
  */
 float tmpFloat;
 unsigned short tmpUShort;
+float tmpStart,tmpEnd;
+String tmpString;
 /******************************************************************
  * 
  *           f u n c t i o n   i n i t i a l i z a t i o n
@@ -521,22 +524,52 @@ void setup() {
    */
    Serial.println("Press any key to stop and read");
 }
-/*******************************************************************
+/******************************************************************* 
+ * 
  * 
  *                          L O O P
  * 
+ *
  *******************************************************************/
 void loop() {
   // put your main code here, to run repeatedly:
 
   if (buttonState(9)==true){
     if (debouncePush(9)==true){
-      stopDraw=!stopDraw;
-      if (stopDraw){
-        zoomRight=320;
-        zoomLeft=320;
+      if (drawZoomAreaNow==true){
+        // 0..........graphEnd............graphStart........graphLength-1
+        // RAMDistance is defined
+        tmpStart=scale(zoomLeft,TFT_WIDTH-1,0,RAMDistance-1,0);
+        tmpStart+=graphStart;
+        if (tmpStart>=graphLength){
+          tmpStart-=graphLength;
+        }
+        if (tmpStart>=graphLength){
+          Serial.print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!\t");Serial.println(__LINE__);
+        }
+        tmpEnd=scale(zoomRight,TFT_WIDTH-1,0,RAMDistance-1,0);
+        tmpEnd+=graphStart;
+        if (tmpEnd>=graphLength){
+          tmpEnd-=graphLength;
+        }
+        if (tmpEnd>=graphLength){
+          Serial.print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!\t");Serial.println(__LINE__);
+        }
+        zoomedGraphStart=tmpStart;
+        zoomedGraphEnd=tmpEnd;
+        tmpString="zoomS : " + String(int(zoomedGraphStart));
+        Serial.println(tmpString);
+        tmpString="zoomE : " + String(int(zoomedGraphEnd));
+        Serial.println(tmpString);
+        drawZoomAreaNow=false;
+      }else{
+        stopDraw=!stopDraw;
+        if (stopDraw){
+          zoomRight=320;
+          zoomLeft=320;
+        }
+        myGLCD.clrScr();
       }
-      myGLCD.clrScr();
     }
   }else if (stopDraw){
     if (buttonState(10)==true){
@@ -783,13 +816,13 @@ void loop() {
                       colorVector=scale(zoomedGraphMin[zoomRight+1],TFT_HEIGHT-1,0,0,255);
                       myGLCD.setColor(0+colorVector,255,255-colorVector);
                       drawPixel(zoomRight+1,zoomedGraphMin[zoomRight+1]);
+//                      drawZoomAreaNow=true;
                     }
                   }
                   myGLCD.setColor(VGA_GREEN);
                   myGLCD.drawLine(zoomRight,TFT_HEIGHT-1,zoomRight,0);
                 }
                 if (zoomLeft!=320){
-                  
                   if (zoomLeft!=319){
                     if (zoomLeft+1!=zoomRight){
                       myGLCD.setColor(VGA_BLACK);
@@ -800,6 +833,7 @@ void loop() {
                       colorVector=scale(zoomedGraphMin[zoomLeft+1],TFT_HEIGHT-1,0,0,255);
                       myGLCD.setColor(0+colorVector,255,255-colorVector);
                       drawPixel(zoomLeft+1,zoomedGraphMin[zoomLeft+1]);
+//                      drawZoomAreaNow=true;
                     }
                   }
 
@@ -808,6 +842,7 @@ void loop() {
                 }
               }
               stopDrawingPauseZoomScreen=true;
+              drawZoomAreaNow=true;
             }
           }
           /*
