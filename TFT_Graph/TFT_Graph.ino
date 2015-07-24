@@ -40,7 +40,12 @@
  *  
  *  This program was made for modules with a screen resolution of 320x240 pixels
  *  
- *  This program requires the UTFT library.
+ *  This program requires the UTFT/ UTouch/ SdFat library.
+ *  
+ *  It's main purpose is for me to learn to program. Do NOT expect it to be 
+ *  an easy to learn/ teach program. HOWEVER, if you want me to clear a section
+ *  or if you "sense" a section and you want me to highlight/ clear it out i'd
+ *  be happy to do so :)
  *  
  */
 //#include <math.h>
@@ -66,8 +71,8 @@ ArduinoOutStream cout(Serial);
  ********************************************************/
 #define gravity 9.806
 #define ledPin  13
-const int numOfBumps /* in 10 secs */ = 60;
-const unsigned short totalSecs=20;
+const int numOfBumps /* in 10 secs */ = 10;
+const unsigned short totalSecs=5;
 //const int maxHeight /* starting height in meters */ = 10;
 //  const int startingHeight=maxHeight;
 const double lastMaxHeightPercentage /* before the last bump/ in meters */ = 1/100.0/* of startingHeight  */;
