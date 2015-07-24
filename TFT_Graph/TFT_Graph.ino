@@ -139,7 +139,8 @@ unsigned long TFTLoopsPerSec;
 unsigned const int graphLength=20000;/* about 10 Hours *//*beware! there is a problem at high numbers *//* keep it >TFT_WIDTH */
 unsigned short graph[graphLength],zoomedGraph[int(TFT_WIDTH)],zoomedGraphMax[int(TFT_WIDTH)],zoomedGraphMin[int(TFT_WIDTH)],graphCounter=0,lastFirstPixelY;
 unsigned int graphIndex,graphStart/* graphStart=graphLength-1 <-- this didn't work here */,graphEnd,RAMDistance;
-bool stillGettingFilled=true,stopDrawingPauseScreen=false;
+bool stillGettingFilled=true,stopDrawingPauseScreen=false,stopDrawingPauseZoomScreen=false;
+short zoomRight=320,zoomLeft=320;
 
 unsigned long TFTDrawCounter=-1;
 
@@ -528,11 +529,35 @@ void setup() {
 void loop() {
   // put your main code here, to run repeatedly:
 
-  if (buttonState(9)==true)
+  if (buttonState(9)==true){
     if (debouncePush(9)==true){
       stopDraw=!stopDraw;
+      if (stopDraw){
+        zoomRight=320;
+        zoomLeft=320;
+      }
       myGLCD.clrScr();
     }
+  }else if (stopDraw){
+    if (buttonState(10)==true){
+      if (debouncePush(10)==true){
+        zoomRight--;
+        if (zoomRight==-1)
+          zoomRight=0;
+        else
+          stopDrawingPauseZoomScreen=false;
+      }
+    }else if (buttonState(11)==true){
+      if (debouncePush(11)==true){
+        zoomLeft--;
+        if (zoomLeft==-1)
+          zoomLeft=0;
+        else
+          stopDrawingPauseZoomScreen=false;
+      }
+    }
+  }
+    
   /* code to keep track of 10 sec 
    *  trackedTime: 0 ---> 10 sec
   */
@@ -742,6 +767,47 @@ void loop() {
               //same here code for index==graphEnd
   
               graphStart--;graphEnd--;
+            }
+          }else{
+            /* check zoom request */
+            if (!stopDrawingPauseZoomScreen){
+              if (zoomRight!=320 || zoomLeft!=320){
+                if (zoomRight!=320){
+                  if (zoomRight!=319){
+                    if (zoomRight+1!=zoomLeft){
+                      myGLCD.setColor(VGA_BLACK);
+                      myGLCD.drawLine(zoomRight+1,TFT_HEIGHT-1,zoomRight+1,0);
+                      colorVector=scale(zoomedGraphMax[zoomRight+1],TFT_HEIGHT-1,0,0,255);
+                      myGLCD.setColor(0+colorVector,255,255-colorVector);
+                      drawPixel(zoomRight+1,zoomedGraphMax[zoomRight+1]);
+                      colorVector=scale(zoomedGraphMin[zoomRight+1],TFT_HEIGHT-1,0,0,255);
+                      myGLCD.setColor(0+colorVector,255,255-colorVector);
+                      drawPixel(zoomRight+1,zoomedGraphMin[zoomRight+1]);
+                    }
+                  }
+                  myGLCD.setColor(VGA_GREEN);
+                  myGLCD.drawLine(zoomRight,TFT_HEIGHT-1,zoomRight,0);
+                }
+                if (zoomLeft!=320){
+                  
+                  if (zoomLeft!=319){
+                    if (zoomLeft+1!=zoomRight){
+                      myGLCD.setColor(VGA_BLACK);
+                      myGLCD.drawLine(zoomLeft+1,TFT_HEIGHT-1,zoomLeft+1,0);
+                      colorVector=scale(zoomedGraphMax[zoomLeft+1],TFT_HEIGHT-1,0,0,255);
+                      myGLCD.setColor(0+colorVector,255,255-colorVector);
+                      drawPixel(zoomLeft+1,zoomedGraphMax[zoomLeft+1]);
+                      colorVector=scale(zoomedGraphMin[zoomLeft+1],TFT_HEIGHT-1,0,0,255);
+                      myGLCD.setColor(0+colorVector,255,255-colorVector);
+                      drawPixel(zoomLeft+1,zoomedGraphMin[zoomLeft+1]);
+                    }
+                  }
+
+                  myGLCD.setColor(VGA_YELLOW);
+                  myGLCD.drawLine(zoomLeft,TFT_HEIGHT-1,zoomLeft,0);
+                }
+              }
+              stopDrawingPauseZoomScreen=true;
             }
           }
           /*
@@ -993,7 +1059,7 @@ void loop() {
   }
   ====================================================================
   */
-  if (Serial.available()||buttonState(10)==true){
+  if (Serial.available()||buttonState(8)==true){
     file.flush();
     Serial.print ("End free space: ");
     Serial.println(freeSpaceString(6));
