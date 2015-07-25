@@ -136,7 +136,7 @@ unsigned long TFTLoopsPerSec;
 //#define randomDataLength  40000
 //unsigned short randomData[randomDataLength],lastFirstPixel,randomDataCounter=0,previousRandomDataCounter=0,randomDataIndex;
 
-unsigned const int graphLength=400;/* about 10 Hours *//*beware! there is a problem at high numbers *//* keep it >TFT_WIDTH */
+unsigned const int graphLength=20000;/* about 10 Hours *//*beware! there is a problem at high numbers *//* keep it >TFT_WIDTH */
 long zoomedGraphStart,zoomedGraphEnd;
 unsigned short graph[graphLength],zoomedGraph[int(TFT_WIDTH)],zoomedGraphMax[int(TFT_WIDTH)],zoomedGraphMin[int(TFT_WIDTH)],graphCounter=0,lastFirstPixelY;
 unsigned int graphIndex,graphStart/* graphStart=graphLength-1 <-- this didn't work here */,graphEnd,RAMDistance;
@@ -385,6 +385,8 @@ void setup() {
   // put your setup code here, to run once:
   Serial.begin(115200);
   analogReadResolution(12);
+//  pinMode(14,OUTPUT);
+//  digitalWrite(14,HIGH);
   randomSeed(analogRead(A0));
   // Setup the LCD
   myGLCD.InitLCD(LANDSCAPE);
@@ -562,6 +564,7 @@ void loop() {
         tmpString="zoomE : " + String(int(zoomedGraphEnd));
         Serial.println(tmpString);
         drawZoomAreaNow=false;
+        stopDrawingPauseScreen=false;
       }else{
         stopDraw=!stopDraw;
         if (stopDraw){
@@ -722,8 +725,13 @@ void loop() {
             graphCounter=0;
           if(stopDrawingPauseScreen==true)
             stopDrawingPauseScreen=false;
+          zoomedGraphStart=graphStart;
+          zoomedGraphEnd=graphEnd;
         }else{
           if (!stopDrawingPauseScreen){
+            myGLCD.clrScr();
+            zoomRight=320;
+            zoomLeft=320;
             if (stillGettingFilled)
               RAMDistance=graphLength-graphStart + graphEnd;
             else
@@ -836,7 +844,10 @@ void loop() {
 //                      drawZoomAreaNow=true;
                     }
                   }
-
+                  if (zoomLeft==320)
+                    zoomLeft=319;
+                  if (zoomRight==320)
+                    zoomRight=319;
                   myGLCD.setColor(VGA_YELLOW);
                   myGLCD.drawLine(zoomLeft,TFT_HEIGHT-1,zoomLeft,0);
                 }
