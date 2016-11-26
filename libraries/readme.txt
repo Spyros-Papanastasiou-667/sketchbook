@@ -1,1 +1,0 @@
-/home/tsester/Arduino/libraries/readme.txt
