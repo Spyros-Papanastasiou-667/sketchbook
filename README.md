@@ -1,3 +1,2 @@
-this is my Arduino/sketchbook folder. It is here mainly for the following programs which are all under some GPL2+ license:
-* bouncing_ball for wikimedia video
-* bouncing_ball_TFT for wikimedia video
+* bouncing_ball     ( https://commons.wikimedia.org/wiki/File:Arduino-blinkingLikeABouncingBall.ogv )
+* bouncing_ball_TFT ( https://commons.wikimedia.org/wiki/File:ArduinoTFTBouncingBall.3.1.ogv )
